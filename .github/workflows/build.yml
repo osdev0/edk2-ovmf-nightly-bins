@@ -64,28 +64,47 @@ jobs:
           set -e
           make -C edk2/BaseTools
 
-          build -b RELEASE -t GCC -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc
-          build -b RELEASE -t GCC -a LOONGARCH64 -p OvmfPkg/LoongArchVirt/LoongArchVirtQemu.dsc
-          build -b RELEASE -t GCC -a RISCV64 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-          build -b RELEASE -t GCC -a X64 -p OvmfPkg/OvmfPkgX64.dsc -D FD_SIZE_2MB
-          GCC_BIN=i386-linux- build -b RELEASE -t GCC -a IA32 -p OvmfPkg/OvmfPkgIa32.dsc -D FD_SIZE_2MB
-
           mkdir -p output
 
+          # Each platform is built twice into the same Build directory, so
+          # each image is copied out before its Secure Boot counterpart is
+          # built over it. On x86, Secure Boot takes the 4MB flash layout,
+          # whose variable store has room for authenticated variables.
+
+          build -b RELEASE -t GCC -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc
           cp Build/ArmVirtQemu-AArch64/RELEASE_GCC/FV/QEMU_EFI.fd  output/ovmf-code-aarch64.fd
           cp Build/ArmVirtQemu-AArch64/RELEASE_GCC/FV/QEMU_VARS.fd output/ovmf-vars-aarch64.fd
+          build -b RELEASE -t GCC -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc -D SECURE_BOOT_ENABLE=TRUE
+          cp Build/ArmVirtQemu-AArch64/RELEASE_GCC/FV/QEMU_EFI.fd  output/ovmf-code-aarch64-secboot.fd
+          cp Build/ArmVirtQemu-AArch64/RELEASE_GCC/FV/QEMU_VARS.fd output/ovmf-vars-aarch64-secboot.fd
 
+          build -b RELEASE -t GCC -a LOONGARCH64 -p OvmfPkg/LoongArchVirt/LoongArchVirtQemu.dsc
           cp Build/LoongArchVirtQemu/RELEASE_GCC/FV/QEMU_EFI.fd  output/ovmf-code-loongarch64.fd
           cp Build/LoongArchVirtQemu/RELEASE_GCC/FV/QEMU_VARS.fd output/ovmf-vars-loongarch64.fd
+          build -b RELEASE -t GCC -a LOONGARCH64 -p OvmfPkg/LoongArchVirt/LoongArchVirtQemu.dsc -D SECURE_BOOT_ENABLE=TRUE
+          cp Build/LoongArchVirtQemu/RELEASE_GCC/FV/QEMU_EFI.fd  output/ovmf-code-loongarch64-secboot.fd
+          cp Build/LoongArchVirtQemu/RELEASE_GCC/FV/QEMU_VARS.fd output/ovmf-vars-loongarch64-secboot.fd
 
+          build -b RELEASE -t GCC -a RISCV64 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
           cp Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT_CODE.fd output/ovmf-code-riscv64.fd
           cp Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT_VARS.fd output/ovmf-vars-riscv64.fd
+          build -b RELEASE -t GCC -a RISCV64 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc -D SECURE_BOOT_ENABLE=TRUE
+          cp Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT_CODE.fd output/ovmf-code-riscv64-secboot.fd
+          cp Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT_VARS.fd output/ovmf-vars-riscv64-secboot.fd
 
+          build -b RELEASE -t GCC -a X64 -p OvmfPkg/OvmfPkgX64.dsc -D FD_SIZE_2MB
           cp Build/OvmfX64/RELEASE_GCC/FV/OVMF_CODE.fd output/ovmf-code-x86_64.fd
           cp Build/OvmfX64/RELEASE_GCC/FV/OVMF_VARS.fd output/ovmf-vars-x86_64.fd
+          build -b RELEASE -t GCC -a X64 -p OvmfPkg/OvmfPkgX64.dsc -D FD_SIZE_4MB -D SECURE_BOOT_ENABLE=TRUE
+          cp Build/OvmfX64/RELEASE_GCC/FV/OVMF_CODE.fd output/ovmf-code-x86_64-secboot.fd
+          cp Build/OvmfX64/RELEASE_GCC/FV/OVMF_VARS.fd output/ovmf-vars-x86_64-secboot.fd
 
+          GCC_BIN=i386-linux- build -b RELEASE -t GCC -a IA32 -p OvmfPkg/OvmfPkgIa32.dsc -D FD_SIZE_2MB
           cp Build/OvmfIa32/RELEASE_GCC/FV/OVMF_CODE.fd output/ovmf-code-ia32.fd
           cp Build/OvmfIa32/RELEASE_GCC/FV/OVMF_VARS.fd output/ovmf-vars-ia32.fd
+          GCC_BIN=i386-linux- build -b RELEASE -t GCC -a IA32 -p OvmfPkg/OvmfPkgIa32.dsc -D FD_SIZE_4MB -D SECURE_BOOT_ENABLE=TRUE
+          cp Build/OvmfIa32/RELEASE_GCC/FV/OVMF_CODE.fd output/ovmf-code-ia32-secboot.fd
+          cp Build/OvmfIa32/RELEASE_GCC/FV/OVMF_VARS.fd output/ovmf-vars-ia32-secboot.fd
 
 
       - name: Set TAG_DATE variable
@@ -97,10 +116,12 @@ jobs:
       - name: Create release tarball
         run: |
           set -e
-          dd if=/dev/zero of=edk2-ovmf/ovmf-code-aarch64.fd bs=1 count=0 seek=67108864
-          dd if=/dev/zero of=edk2-ovmf/ovmf-code-riscv64.fd bs=1 count=0 seek=33554432
-          dd if=/dev/zero of=edk2-ovmf/ovmf-vars-aarch64.fd bs=1 count=0 seek=67108864
-          dd if=/dev/zero of=edk2-ovmf/ovmf-vars-riscv64.fd bs=1 count=0 seek=33554432
+          for f in ovmf-code-aarch64 ovmf-vars-aarch64 ovmf-code-aarch64-secboot ovmf-vars-aarch64-secboot; do
+              dd if=/dev/zero of=edk2-ovmf/$f.fd bs=1 count=0 seek=67108864
+          done
+          for f in ovmf-code-riscv64 ovmf-vars-riscv64 ovmf-code-riscv64-secboot ovmf-vars-riscv64-secboot; do
+              dd if=/dev/zero of=edk2-ovmf/$f.fd bs=1 count=0 seek=33554432
+          done
           tar -zcvf edk2-ovmf.tar.gz edk2-ovmf
           tar -Jcvf edk2-ovmf.tar.xz edk2-ovmf
 
