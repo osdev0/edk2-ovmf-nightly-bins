@@ -31,7 +31,7 @@ jobs:
           GCC_VERSION=16.2.0
 
           for i in aarch64 i386 loongarch64 riscv64 x86_64; do
-              wget https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/$GCC_VERSION/x86_64-gcc-$GCC_VERSION-nolibc-$i-linux.tar.gz
+              wget --tries=5 --waitretry=10 --retry-connrefused --retry-on-host-error https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/$GCC_VERSION/x86_64-gcc-$GCC_VERSION-nolibc-$i-linux.tar.gz
               tar -xf x86_64-gcc-$GCC_VERSION-nolibc-$i-linux.tar.gz
               export PATH="$(pwd -P)"/gcc-$GCC_VERSION-nolibc/$i-linux/bin:"$PATH"
           done
